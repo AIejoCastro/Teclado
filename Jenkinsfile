@@ -26,8 +26,9 @@ pipeline {
                         -Dsonar.projectName=Teclado \
                         -Dsonar.sources=. \
                         -Dsonar.exclusions=.git/**,node_modules/** \
-                        -Dsonar.host.url=http://${SONARQUBE_HOST}:9000 \
-                        -Dsonar.login=${SONARQUBE_TOKEN}
+                        -Dsonar.host.url=http://10.0.1.6:9000 \
+                        -Dsonar.login=${SONARQUBE_TOKEN} \
+                        -X
                 '''
             }
         }
