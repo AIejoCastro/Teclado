@@ -5,6 +5,8 @@ pipeline {
         NGINX_HOST = '10.0.1.4'
         NGINX_USER = 'adminuser'
         DEPLOY_PATH = '/var/www/teclado'
+        SONARQUBE_HOST = '10.0.1.6'
+        SONARQUBE_TOKEN = credentials('sonarqube-token')
     }
     
     stages {
@@ -18,29 +20,15 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Ejecutando análisis con SonarQube...'
-                script {
-                    def scannerHome = tool 'SonarScanner'
-                    withSonarQubeEnv() {
-                        sh "${scannerHome}/bin/sonar-scanner"
-                    }
-                }
-            }
-        }
-        
-        stage('Quality Gate') {
-            steps {
-                echo 'Esperando resultado del Quality Gate...'
-                script {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            echo "Quality Gate falló: ${qg.status}"
-                            echo "Continuando con el deploy..."
-                        } else {
-                            echo "Quality Gate pasó"
-                        }
-                    }
-                }
+                sh '''
+                    /opt/sonar-scanner/bin/sonar-scanner \
+                        -Dsonar.projectKey=teclado \
+                        -Dsonar.projectName=Teclado \
+                        -Dsonar.sources=. \
+                        -Dsonar.exclusions=.git/**,node_modules/** \
+                        -Dsonar.host.url=http://${SONARQUBE_HOST}:9000 \
+                        -Dsonar.login=${SONARQUBE_TOKEN}
+                '''
             }
         }
         
