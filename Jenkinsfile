@@ -21,6 +21,21 @@ pipeline {
             steps {
                 echo 'Instalando dependencias y ejecutando tests (generando coverage)...'
                 sh '''
+                    set -e
+                    export NVM_DIR="$HOME/.nvm"
+                    if [ -s "$NVM_DIR/nvm.sh" ]; then
+                        . "$NVM_DIR/nvm.sh"
+                    fi
+                    if ! command -v npm >/dev/null 2>&1; then
+                        echo "Instalando Node.js mediante nvm..."
+                        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+                        . "$NVM_DIR/nvm.sh"
+                    fi
+                    if command -v nvm >/dev/null 2>&1; then
+                        nvm install 18 >/dev/null 2>&1 || true
+                        nvm use 18
+                    fi
+                    command -v npm >/dev/null 2>&1 || { echo "npm no disponible incluso después de instalar nvm"; exit 1; }
                     npm ci || npm install
                     npm test -- --coverage --coverageReporters=lcov --coverageDirectory=coverage
                     echo "Contenido de coverage/"
