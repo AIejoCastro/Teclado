@@ -64,8 +64,6 @@ pipeline {
                     /opt/sonar-scanner/bin/sonar-scanner \
                         -Dsonar.projectKey=teclado \
                         -Dsonar.projectName=Teclado \
-                        -Dsonar.sources=. \
-                        -Dsonar.exclusions=.git/**,node_modules/** \
                         -Dsonar.javascript.lcov.reportPaths=${WORKSPACE}/coverage/lcov.info \
                         -Dsonar.host.url=http://10.0.1.6:9000 \
                         -Dsonar.login=${SONARQUBE_TOKEN} \
