@@ -76,30 +76,35 @@ pipeline {
             steps {
                 echo 'Desplegando archivos a Nginx...'
                 sh '''
+                    set -euo pipefail
+                    SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10 -o ServerAliveInterval=5 -o ServerAliveCountMax=2"
                     TEMP_DIR="/tmp/teclado-deploy-$$"
-                    
-                    # Crea carpeta temporal en Nginx
-                    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${NGINX_USER}@${NGINX_HOST} \
-                        "sudo rm -rf $TEMP_DIR && mkdir -p $TEMP_DIR"
-                    
-                    # Copia archivos
-                    scp -o StrictHostKeyChecking=no -r \
-                        index.html \
-                        script.js \
-                        css \
-                        ${NGINX_USER}@${NGINX_HOST}:$TEMP_DIR/
-                    
-                    # Mueve a destino final
-                    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${NGINX_USER}@${NGINX_HOST} \
-                        "sudo rm -rf ${DEPLOY_PATH}/* && sudo mv $TEMP_DIR/* ${DEPLOY_PATH}/ && sudo rm -rf $TEMP_DIR"
-                    
-                    # Configura permisos
-                    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${NGINX_USER}@${NGINX_HOST} \
-                        "sudo chown -R www-data:www-data ${DEPLOY_PATH} && sudo chmod -R 755 ${DEPLOY_PATH}"
-                    
-                    # Recarga Nginx
-                    ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${NGINX_USER}@${NGINX_HOST} \
-                        "sudo systemctl reload nginx"
+                    PACKAGE="/tmp/teclado-package-$$.tgz"
+
+                    echo "Creando paquete temporal..."
+                    tar -czf teclado-build.tgz index.html script.js css
+
+                    echo "Enviando y desplegando artefacto en ${NGINX_HOST}..."
+                    scp ${SSH_OPTS} teclado-build.tgz ${NGINX_USER}@${NGINX_HOST}:"$PACKAGE"
+
+                    ssh ${SSH_OPTS} ${NGINX_USER}@${NGINX_HOST} "TEMP_DIR='$TEMP_DIR' DEPLOY_PATH='${DEPLOY_PATH}' PACKAGE='$PACKAGE' bash -s" <<'REMOTE'
+                        set -euo pipefail
+                        sudo rm -rf "$TEMP_DIR"
+                        sudo mkdir -p "$TEMP_DIR"
+                        sudo tar -xzf "$PACKAGE" -C "$TEMP_DIR"
+                        sudo rm -f "$PACKAGE"
+                        sudo rm -rf "$DEPLOY_PATH"/*
+                        sudo mv "$TEMP_DIR"/index.html "$DEPLOY_PATH"/
+                        sudo mv "$TEMP_DIR"/script.js "$DEPLOY_PATH"/
+                        sudo rm -rf "$DEPLOY_PATH"/css
+                        sudo mv "$TEMP_DIR"/css "$DEPLOY_PATH"/
+                        sudo chown -R www-data:www-data "$DEPLOY_PATH"
+                        sudo chmod -R 755 "$DEPLOY_PATH"
+                        sudo rm -rf "$TEMP_DIR"
+                        sudo systemctl reload nginx
+REMOTE
+
+                    rm -f teclado-build.tgz
                 '''
             }
         }
