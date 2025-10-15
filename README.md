@@ -52,3 +52,69 @@ Variables relevantes del pipeline (definidas en `environment`):
 Notas de seguridad y configuración:
 - El pipeline asume que el usuario configurado en Jenkins tiene acceso SSH sin intervención humana (o que las credenciales/llaves están gestionadas adecuadamente).
 - El `sonar-scanner` se invoca desde `/opt/sonar-scanner/bin/sonar-scanner`; asegúrate de que esté instalado en el agente Jenkins.
+
+## Cambios realizados 
+
+He documentado aquí todos los cambios que se han realizado en el repositorio para añadir pruebas, generar cobertura y facilitar el análisis de SonarQube.
+
+Archivos añadidos:
+
+- `.gitignore` — Ignora `node_modules/`, `coverage/`, logs, `.DS_Store`, `.env`, y configuraciones de IDE.
+- `package.json` — Configuración del proyecto para pruebas con Jest y scripts `test`/`test:lcov`.
+- `__tests__/script.test.js` — Tests unitarios que usan `jsdom` para validar la funcionalidad principal.
+
+Archivos modificados:
+
+- `script.js` — Refactorizado para:
+  - Corregir la implementación de `getRandomNumber` a una versión estándar (retorna entero entre min..max inclusive).
+  - Añadir la función `getKeys()` para obtener dinámicamente las teclas desde el DOM.
+  - Añadir comprobaciones defensivas: devolver `null` si no hay teclas, y evitar errores si `document.getElementById` no encuentra un elemento.
+  - Extraer la lógica de manejo de teclas a `handleKeydown` para poder probarla directamente.
+  - Exportar funciones (`getKeys`, `getRandomNumber`, `getRandomKey`, `targetRandomKey`, `handleKeydown`) mediante `module.exports` para facilitar testing en Node/Jest.
+- `sonar-project.properties` — Se añadió `sonar.javascript.lcov.reportPaths=coverage/lcov.info` para que SonarQube lea el reporte LCOV generado por Jest.
+
+Comandos ejecutados durante el proceso (en el entorno local):
+
+```bash
+# instalar dependencias dev
+npm install
+npm install --save-dev jest-environment-jsdom@^29.0.0
+
+# ejecutar tests y generar coverage
+npm test
+```
+
+Resultados de la ejecución de tests:
+
+- Tests: 5 passed, 0 failed.
+- Cobertura generada: `coverage/lcov.info`.
+- Cobertura global: 87.87% (superior al umbral solicitado del 80%).
+
+Notas importantes sobre el refactor y tests:
+
+- Ahora `script.js` es compatible con el uso directo en navegador (sigue añadiendo el listener de `keydown` y llamando a `targetRandomKey()` si `document` existe) y, al mismo tiempo, exporta funciones para el entorno de pruebas.
+- Los tests usan `jsdom` para simular el DOM y verificar:
+  - Que se selecciona una tecla al inicializar.
+  - Que `getRandomNumber` devuelve números enteros dentro del rango.
+  - Que `getRandomKey` maneja el caso sin teclas.
+  - Que `handleKeydown` no falla con teclas no mapeadas y que procesa correctamente una pulsación coincidente.
+
+Recomendaciones para integración en CI (Jenkins):
+
+1. Asegúrate de que el agente Jenkins tenga Node.js y npm instalados.
+2. Añade un stage antes del análisis de SonarQube que ejecute:
+
+```groovy
+sh 'npm ci'
+sh 'npm test -- --coverage'
+```
+
+3. Asegúrate de que el directorio `coverage/lcov.info` sea accesible desde el mismo workspace donde se ejecuta `sonar-scanner` o pasa la ruta con `-Dsonar.javascript.lcov.reportPaths=coverage/lcov.info` al invocar `sonar-scanner`.
+
+Posibles mejoras futuras
+
+- Aumentar la granularidad de tests exportando más funciones o reestructurando el código a módulos ES6 (si el entorno lo permite).
+- Añadir tests para UI avanzada (animaciones, ciclo de selección de teclas) usando herramientas de integración o E2E si es necesario.
+- Añadir un stage de formato/lint y/o pre-commit hooks.
+
+Si quieres que actualice el `Jenkinsfile` para añadir la ejecución de tests y cobertura antes del análisis SonarQube, lo hago ahora y actualizo el archivo.

@@ -17,15 +17,36 @@ pipeline {
             }
         }
         
+        stage('Run tests') {
+            steps {
+                echo 'Instalando dependencias y ejecutando tests (generando coverage)...'
+                sh '''
+                    npm ci || npm install
+                    npm test -- --coverage --coverageReporters=lcov --coverageDirectory=coverage
+                    echo "Contenido de coverage/"
+                    ls -la coverage || true
+                    wc -c coverage/lcov.info || true
+                    head -n 40 coverage/lcov.info || true
+                '''
+                // stash coverage so sonar stage can run on another agent if needed
+                stash includes: 'coverage/**', name: 'coverage'
+            }
+        }
+        
         stage('SonarQube Analysis') {
             steps {
                 echo 'Ejecutando análisis con SonarQube...'
+                // retrieve coverage if it was stashed
+                unstash 'coverage' || true
                 sh '''
+                    ls -la coverage || true
+                    head -n 20 coverage/lcov.info || true
                     /opt/sonar-scanner/bin/sonar-scanner \
                         -Dsonar.projectKey=teclado \
                         -Dsonar.projectName=Teclado \
                         -Dsonar.sources=. \
                         -Dsonar.exclusions=.git/**,node_modules/** \
+                        -Dsonar.javascript.lcov.reportPaths=${WORKSPACE}/coverage/lcov.info \
                         -Dsonar.host.url=http://10.0.1.6:9000 \
                         -Dsonar.login=${SONARQUBE_TOKEN} \
                         -X

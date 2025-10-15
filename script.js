@@ -2,11 +2,45 @@ function getKeys() {
   return document.querySelectorAll('.keyboard li');
 }
 
-function getRandomNumber(min, max) {
-  // inclusive min..max
+/**
+ * secureRandomInt: tries to use cryptographically secure RNG when possible.
+ * - In Node.js: use crypto.randomInt
+ * - In browsers: use crypto.getRandomValues
+ * - Fallback: Math.random (not cryptographically secure)
+ */
+function secureRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  // node crypto.randomInt
+  try {
+    if (typeof require === 'function') {
+      const nodeCrypto = require('crypto');
+      if (typeof nodeCrypto.randomInt === 'function') {
+        // randomInt is exclusive on the max param, so add +1
+        return nodeCrypto.randomInt(min, max + 1);
+      }
+    }
+  } catch (err) {
+    // ignore require errors in browsers
+  }
+
+  // browser crypto
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    // generate a random 32-bit unsigned int and scale
+    const range = max - min + 1;
+    const maxUint32 = 0xffffffff;
+    const arr = new Uint32Array(1);
+    crypto.getRandomValues(arr);
+    const random = arr[0] / (maxUint32 + 1);
+    return Math.floor(random * range) + min;
+  }
+
+  // If we reach here, no secure RNG is available in the environment. Fail fast.
+  throw new Error('Secure random number generator not available in this environment');
+}
+
+function getRandomNumber(min, max) {
+  return secureRandomInt(min, max);
 }
 
 function getRandomKey() {
