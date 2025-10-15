@@ -82,7 +82,15 @@ function handleKeydown(e) {
 if (typeof document !== 'undefined') {
   document.addEventListener('keydown', handleKeydown);
   // initialize
-  targetRandomKey();
+  try {
+    targetRandomKey();
+  } catch (err) {
+    // In some test environments secure RNG may not be available; avoid failing on module import
+    // The rest of the module (exports) remains usable for tests.
+    if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+      console.warn('targetRandomKey initialization skipped:', err.message);
+    }
+  }
 }
 
 // Exports for testing (CommonJS)
@@ -93,5 +101,6 @@ if (typeof module !== 'undefined' && module.exports) {
     getRandomKey,
     targetRandomKey,
     handleKeydown,
+    secureRandomInt,
   };
 }
