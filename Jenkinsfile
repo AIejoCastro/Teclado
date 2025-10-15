@@ -51,8 +51,13 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 echo 'Ejecutando análisis con SonarQube...'
-                // retrieve coverage if it was stashed
-                unstash 'coverage' || true
+                script {
+                    try {
+                        unstash 'coverage'
+                    } catch (err) {
+                        echo 'No se encontró stash "coverage" (posiblemente ejecutando en el mismo agente)'
+                    }
+                }
                 sh '''
                     ls -la coverage || true
                     head -n 20 coverage/lcov.info || true
