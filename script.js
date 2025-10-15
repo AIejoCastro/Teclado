@@ -1,40 +1,63 @@
-const keys = document.querySelectorAll(".keyboard li");
+function getKeys() {
+  return document.querySelectorAll('.keyboard li');
+}
 
 function getRandomNumber(min, max) {
-  min = Math.floor(min);
-  max = Math.ceil(max);
-  return Math.ceil(Math.random() * (min - max + 1) + max);
+  // inclusive min..max
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 function getRandomKey() {
+  const keys = getKeys();
+  if (!keys || keys.length === 0) return null;
   return keys[getRandomNumber(0, keys.length - 1)];
 }
 
 function targetRandomKey() {
   const key = getRandomKey();
-  key.classList.add("selected");
+  if (!key) return null;
+  key.classList.add('selected');
+  return key;
 }
 
-document.addEventListener("keydown", (e) => {
+function handleKeydown(e) {
   const keyPressed = e.key.toUpperCase();
   const keyElement = document.getElementById(keyPressed);
-  const highlightedKey = document.querySelector(".selected");
-  keyElement.classList.add("hit");
+  const highlightedKey = document.querySelector('.selected');
+  if (!keyElement) return; // tecla no mapeada en el DOM
 
-  keyElement.addEventListener("animationend", () => {
-    keyElement.classList.remove("hit");
+  keyElement.classList.add('hit');
+  keyElement.addEventListener('animationend', () => {
+    keyElement.classList.remove('hit');
   });
 
+  if (!highlightedKey) return; // no hay tecla resaltada
+
   if (keyPressed === highlightedKey.innerHTML) {
-    highlightedKey.classList.remove("selected");
-    if (keyPressed === "CAPSLOCK") {
-      keyElement.classList.remove("selected");
-    }
-    if (keyPressed === "BACKSPACE") {
-      keyElement.classList.remove("selected");
+    highlightedKey.classList.remove('selected');
+    if (keyPressed === 'CAPSLOCK' || keyPressed === 'BACKSPACE') {
+      keyElement.classList.remove('selected');
     }
     targetRandomKey();
   }
-});
+}
 
-targetRandomKey();
+// bind in browser
+if (typeof document !== 'undefined') {
+  document.addEventListener('keydown', handleKeydown);
+  // initialize
+  targetRandomKey();
+}
+
+// Exports for testing (CommonJS)
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    getKeys,
+    getRandomNumber,
+    getRandomKey,
+    targetRandomKey,
+    handleKeydown,
+  };
+}
